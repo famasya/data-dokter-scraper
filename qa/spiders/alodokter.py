@@ -11,38 +11,38 @@ class Alodokter(scrapy.Spider):
   current_page = 1
 
   def start_requests(self):
-    csv_url = "https://raw.githubusercontent.com/famasya/data-dokter-scraper/main/alodokter_links.csv?token=AC53AHDADFTTSWSVZQEMZ4DACVBGG"
-    response = urllib.request.urlopen(csv_url)
-    lines = [l.decode('utf-8') for l in response.readlines()]
-    reader = csv.reader(lines)
-    for row in reader:
-      self.start_urls.append(row[1])
-
+    with open('alodokter_links.csv', newline='') as f:
+      reader = csv.reader(f)
+      for row in reader:
+        self.start_urls.append(row[1])
+    
+    self.start_urls.pop(0)
     self.topic_url = self.start_urls.pop()
     yield scrapy.Request(self.topic_url, callback=self.parse)
 
   def parse(self, response):
-    print('http status', response.status)
-    if (response.status == 404):
-      self.topic_url = self.start_urls.pop()
-      yield scrapy.Request(self.topic_url, callback=self.parse)
-      self.current_page = 1
+    topics = response.css('card-topic')
+    if (len(topics) != 0):
+      self.current_page += 1
+      url = response.request.url+'/page/'+str(self.current_page)
 
-    else:
-      topics = response.css('card-topic')
-      if (len(topics) != 0):
-        self.current_page += 1
-        url = response.request.url+'/page/'+str(self.current_page)
+      for topic in topics:
+        href = 'https://alodokter.com'+topic.css('card-topic::attr(href)').get()
+        yield scrapy.Request(href, callback=self.parse_content)
 
-        for topic in topics:
-          href = 'https://alodokter.com'+topic.css('card-topic::attr(href)').get()
-          yield scrapy.Request(href, callback=self.parse_content)
+      if (self.current_page > 2):
+        url = response.request.url.rsplit('/', 1)[0]+'/'+str(self.current_page)
 
-        if (self.current_page > 2):
-          url = response.request.url.rsplit('/', 1)[0]+'/'+str(self.current_page)
+      print(response.request.url)
 
-        print(response.request.url)
+      is_next = response.css('paginate-button::attr(next-page)').get()
+      if(is_next != '0'):
         yield scrapy.Request(url, callback=self.parse)
+      else:
+        print('page done')
+        self.current_page = 1
+        self.topic_url = self.start_urls.pop()
+        yield scrapy.Request(self.topic_url, callback=self.parse)
 
 
   def clean_txt(self, txt):
@@ -66,7 +66,7 @@ class Alodokter(scrapy.Spider):
         'comment': comment,
         'comment_at': reply.css('doctor-topic::attr(post-date)').get(),
       })
-    
+
     yield {
       'user': response.css('detail-topic::attr(member-username)').get(),
       'title': response.css('detail-topic::attr(member-topic-title)').get(),
