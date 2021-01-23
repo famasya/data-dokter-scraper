@@ -2,6 +2,7 @@ import scrapy
 import w3lib.html
 from bs4 import BeautifulSoup
 import csv
+import urllib
 
 class Alodokter(scrapy.Spider):
   name = "alodokter"
@@ -9,10 +10,12 @@ class Alodokter(scrapy.Spider):
   current_page = 1
 
   def start_requests(self):
-    with open('alodokter_links.csv', newline='') as f:
-      reader = csv.reader(f)
-      for row in reader:
-        self.start_urls.append(row[1])
+    csv_url = "https://raw.githubusercontent.com/famasya/data-dokter-scraper/main/alodokter_links.csv?token=AC53AHDADFTTSWSVZQEMZ4DACVBGG"
+    response = urllib.request.urlopen(csv_url)
+    lines = [l.decode('utf-8') for l in response.readlines()]
+    reader = csv.reader(lines)
+    for row in reader:
+      self.start_urls.append(row[1])
 
     yield scrapy.Request(self.start_urls.pop(), callback=self.parse)
 
