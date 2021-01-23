@@ -11,10 +11,21 @@ class Alodokter(scrapy.Spider):
   current_page = 1
 
   def start_requests(self):
-    with open('alodokter_links.csv', newline='') as f:
-      reader = csv.reader(f)
+    remote_file = getattr(self,'remote_file','')
+    if(remote_file != ''):
+      print('Remote mode')
+      csv_url = "https://raw.githubusercontent.com/famasya/data-dokter-scraper/main/alodokter_links.csv?token=AC53AHDADFTTSWSVZQEMZ4DACVBGG"
+      response = urllib.request.urlopen(csv_url)
+      lines = [l.decode('utf-8') for l in response.readlines()]
+      reader = csv.reader(lines)
       for row in reader:
         self.start_urls.append(row[1])
+    else:
+      print('Local mode')
+      with open('alodokter_links.csv', newline='') as f:
+        reader = csv.reader(f)
+        for row in reader:
+          self.start_urls.append(row[1])
     
     self.start_urls.pop(0)
     self.topic_url = self.start_urls.pop()
