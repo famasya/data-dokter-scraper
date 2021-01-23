@@ -7,6 +7,7 @@ import urllib
 class Alodokter(scrapy.Spider):
   name = "alodokter"
   start_urls = []
+  topic_url = ""
   current_page = 1
 
   def start_requests(self):
@@ -17,12 +18,14 @@ class Alodokter(scrapy.Spider):
     for row in reader:
       self.start_urls.append(row[1])
 
-    yield scrapy.Request(self.start_urls.pop(), callback=self.parse)
+    self.topic_url = self.start_urls.pop()
+    yield scrapy.Request(self.topic_url, callback=self.parse)
 
   def parse(self, response):
     print('http status', response.status)
     if (response.status == 404):
-      yield scrapy.Request(self.start_urls.pop(), callback=self.parse)
+      self.topic_url = self.start_urls.pop()
+      yield scrapy.Request(self.topic_url, callback=self.parse)
       self.current_page = 1
 
     else:
@@ -73,5 +76,6 @@ class Alodokter(scrapy.Spider):
       'answer_date': response.css('doctor-topic[doctor-title-small=Dokter]::attr(post-date)').get(),
       'doctor': response.css('doctor-topic[doctor-title-small=Dokter]::attr(doctor-name-title)').get(),
       'replies': replies_data,
-      'url': response.request.url
+      'url': response.request.url,
+      'topic_url': self.topic_url
     }
